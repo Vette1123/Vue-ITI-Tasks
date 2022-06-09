@@ -1,18 +1,42 @@
 <template>
   <div class="container">
-    <table class="table table-bordered table-striped">
+    <table class="table table-bordered table-striped text-center">
       <thead>
         <tr>
           <th>ID</th>
           <th>Name</th>
           <th>City</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="student in students" :key="student.id">
           <td>{{ student.id }}</td>
-          <td>{{ student.name }}</td>
+          <td>
+            <router-link :to="'/studentdetails/' + student.id">{{
+              student.name
+            }}</router-link>
+          </td>
           <td>{{ student.city }}</td>
+          <td>
+            <button
+              type="button"
+              class="btn btn-warning"
+              data-toggle="modal"
+              data-target="#updateModal"
+              @click="setUpdateData(student)"
+            >
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            |
+            <button
+              type="button"
+              class="btn btn-danger"
+              @click="deleteStudent(student.id)"
+            >
+              <i class="fa-solid fa-circle-xmark"></i>
+            </button>
+          </td>
         </tr>
       </tbody>
       <tfoot>
@@ -23,25 +47,27 @@
         </tr>
       </tfoot>
     </table>
+
     <div class="row">
-      <button
-        data-bs-toggle="modal"
-        href="#form"
-        role="button"
-        class="btn btn-primary py-2 my-1"
-      >
-        Add new Student
-      </button>
+      <AddVue @addStudent="testEventRaised" />
     </div>
-    <div id="form" class="modal fade" tabindex="-1">
-      <div class="modal-dialog">
+
+    <div
+      class="modal fade"
+      id="updateModal"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Add Student</h5>
+            <h5 class="modal-title">Update Student</h5>
             <button
               type="button"
               class="btn-close"
-              data-bs-dismiss="modal"
+              data-dismiss="modal"
               aria-label="Close"
             ></button>
           </div>
@@ -54,7 +80,8 @@
                   class="form-control"
                   id="idInput"
                   placeholder="Id"
-                  v-model="formData.id"
+                  v-model="stdid"
+                  disabled
                 />
               </div>
               <div class="mb-3">
@@ -64,7 +91,7 @@
                   class="form-control"
                   id="nameInput"
                   placeholder="Name"
-                  v-model="formData.name"
+                  v-model="stdname"
                 />
               </div>
               <div class="mb-3">
@@ -74,7 +101,7 @@
                   class="form-control"
                   id="cityInput"
                   placeholder="City"
-                  v-model="formData.city"
+                  v-model="stdcity"
                 />
               </div>
             </form>
@@ -83,12 +110,17 @@
             <button
               type="button"
               class="btn btn-secondary"
-              data-bs-dismiss="modal"
+              data-dismiss="modal"
             >
               Close
             </button>
-            <button @click="addStudent" type="button" class="btn btn-primary">
-              Add
+            <button
+              @click="updateStudent()"
+              type="button"
+              class="btn btn-primary"
+              data-dismiss="modal"
+            >
+              Update
             </button>
           </div>
         </div>
@@ -98,24 +130,66 @@
 </template>
 
 <script>
-import students from "../student";
-
+import AddVue from "./Add.vue";
 export default {
   data() {
     return {
-      students,
+      students: [],
       formData: {},
+      stdid: "",
+      stdname: "",
+      stdcity: "",
     };
   },
-
+  async created() {
+    const allStudents = await fetch("http://localhost:5000/students");
+    this.students = await allStudents.json();
+  },
   methods: {
-    addStudent(e) {
-      this.students.push(this.formData);
-      this.formData = {};
-      document.querySelector(".btn-close").click();
+    async testEventRaised(data) {
+      await fetch("http://localhost:5000/students", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      this.students.push(data);
     },
+    setUpdateData(student) {
+      this.stdid = student.id;
+      this.stdname = student.name;
+      this.stdcity = student.city;
+    },
+    async updateStudent() {
+      let updateObj = {
+        id: this.stdid,
+        name: this.stdname,
+        city: this.stdcity,
+      };
+      await fetch(`http://localhost:5000/students/${this.stdid}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateObj),
+      });
+      this.students.find((student) => student.id == this.stdid).name =
+        this.stdname;
+      this.students.find((student) => student.id == this.stdid).city =
+        this.stdcity;
+    },
+    async deleteStudent(_id) {
+      if (confirm("Are you sure you want to delete this student?")) {
+        await fetch(`http://localhost:5000/students/${_id}`, {
+          method: "DELETE",
+        });
+        this.students = this.students.filter((s) => s.id != _id);
+      }
+    },
+  },
+  components: {
+    AddVue,
   },
 };
 </script>
-
-<style scoped></style>
